@@ -1,4 +1,4 @@
-import ollama
+import requests
 
 print("This is Echominds AI, your personal assistant. How can I help you today? (Type 'exit' to quit)")
 
@@ -13,10 +13,15 @@ while True:
 
     messages.append({"role": "user", "content": user_input})
 
-    response = ollama.chat(
-        model = "llama3",
-        messages=messages
-    )
-    print("Bot:", response['message']['content'])
+    try:
+        res = requests.post(
+            "http://127.0.0.1:11434/api/chat",
+            json={"model": "llama3", "messages": messages, "stream": False}
+        ).json()
+        bot_reply = res.get('message', {}).get('content', "Error: No response")
+    except Exception as e:
+        bot_reply = f"Connection Error: {e}"
 
-    messages.append({"role": "assistant", "content": response['message']['content']})
+    print("Bot:", bot_reply)
+
+    messages.append({"role": "assistant", "content": bot_reply})

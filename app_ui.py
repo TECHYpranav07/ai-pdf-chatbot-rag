@@ -1,5 +1,5 @@
 import streamlit as st
-import ollama
+import requests
 
 st.title("🧠 Echominds AI")
 
@@ -23,11 +23,17 @@ if st.button("Send"):
     if user_input:
         st.session_state.messages.append({"role": "user", "content": user_input})
 
-        response = ollama.chat(
-            model="llama3",
-            messages=st.session_state.messages
-        )
-
-        bot_reply = response['message']['content']
+        try:
+            res = requests.post(
+                "http://127.0.0.1:11434/api/chat",
+                json={
+                    "model": "llama3",
+                    "messages": st.session_state.messages,
+                    "stream": False
+                }
+            ).json()
+            bot_reply = res.get('message', {}).get('content', "Error: No response")
+        except Exception as e:
+            bot_reply = f"Connection Error: {e}"
 
         st.session_state.messages.append({"role": "assistant", "content": bot_reply})

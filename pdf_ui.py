@@ -1,5 +1,5 @@
 import streamlit as st
-import ollama
+import requests
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import CharacterTextSplitter
 from langchain_community.vectorstores import FAISS
@@ -48,25 +48,30 @@ if uploaded_file:
     # Input
     user_input = st.chat_input("Ask something from PDF")
 
-    if st.button("Ask"):
-        if user_input:
-            # Search relevant chunks
-            docs = st.session_state.db.similarity_search(user_input, k=3)
-            context = " ".join([doc.page_content for doc in docs])
+    if user_input:
+        # Search relevant chunks
+        docs = st.session_state.db.similarity_search(user_input, k=3)
+        context = " ".join([doc.page_content for doc in docs])
 
-            # Ask LLM
-            response = ollama.chat(
-                model="llama3",
-                messages=[
-                    {"role": "system", "content": "Answer ONLY from the context. If not found, say 'I don't know'."},
-                    {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {user_input}"}
-                ]
-            )
+        # Ask LLM
+        try:
+            res = requests.post(
+                "http://127.0.0.1:11434/api/chat",
+                json={
+                    "model": "llama3",
+                    "messages": [
+                        {"role": "system", "content": "Answer ONLY from the context. If not found, say 'I don't know'."},
+                        {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {user_input}"}
+                    ],
+                    "stream": False
+                }
+            ).json()
+            bot_reply = res.get('message', {}).get('content', "Error: No response")
+        except Exception as e:
+            bot_reply = f"Connection Error: {e}"
 
-            bot_reply = response['message']['content']
+        # Save chat
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        st.session_state.messages.append({"role": "assistant", "content": bot_reply})
 
-            # Save chat
-            st.session_state.messages.append({"role": "user", "content": user_input})
-            st.session_state.messages.append({"role": "assistant", "content": bot_reply})
-
-            st.rerun()
+        st.rerun()
